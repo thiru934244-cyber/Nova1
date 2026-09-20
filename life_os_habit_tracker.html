@@ -1,0 +1,1206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LIFE OS — Habit Tracker</title>
+  
+  <style>
+    :root {
+      --bg: #f4f6f8; --panel: #fff; --ink: #111827; --muted: #6b7280; --line: #e5e7eb;
+      --accent: #111827; --soft: #f1f3f5; --done: #111827; --green: #1f8f5f;
+      --anim-speed: 0.3s;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      overflow-x: hidden;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; border: 0; transition: transform 0.15s, background 0.15s; }
+    button:active { transform: scale(0.96); }
+    
+    .app { max-width: 1500px; margin: auto; padding: 28px; }
+    
+    /* Header & Nav */
+    .top { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap; }
+    .header-left { flex: 1; }
+    .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+    .eyebrow { font-size: 12px; font-weight: 800; letter-spacing: .18em; color: var(--muted); text-transform: uppercase; }
+    h1 { font-size: 34px; letter-spacing: -.04em; margin: 4px 0; }
+    .top p, .panel-head p { margin: 4px 0; color: var(--muted); font-size: 13px; }
+    
+    .settings { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .settings label { font-size: 11px; color: var(--muted); font-weight: 700; display: grid; gap: 5px; }
+    input, select, textarea { border: 1px solid var(--line); background: #fff; border-radius: 9px; padding: 9px 11px; outline: none; transition: border 0.2s, box-shadow 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color: #9ca3af; box-shadow: 0 0 0 3px #11182710; }
+    
+    button.primary { background: var(--accent); color: #fff; border-radius: 9px; padding: 10px 14px; font-weight: 700; font-size: 13px; }
+    button.primary:hover { background: #1f2937; }
+    .secondary { background: #fff; color: var(--ink); border: 1px solid var(--line); border-radius: 9px; padding: 10px 14px; font-weight: 700; font-size: 13px; }
+    .secondary:hover { background: #f9fafb; }
+    
+    /* View Tabs */
+    .view-tabs { display: flex; background: var(--soft); padding: 4px; border-radius: 11px; }
+    .tab-btn { background: transparent; color: var(--muted); font-weight: 700; font-size: 13px; padding: 8px 16px; border-radius: 8px; transition: 0.2s; }
+    .tab-btn.active { background: #fff; color: var(--ink); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    
+    .profile-btn { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--line); overflow: hidden; cursor: pointer; background: #fff; flex-shrink: 0; transition: 0.2s; margin-left: 10px; }
+    .profile-btn:hover { border-color: var(--accent); transform: scale(1.05); }
+    .profile-btn img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .controls-row { display: flex; align-items: center; justify-content: flex-end; gap: 10px; width: 100%; }
+
+    /* Stats Grid */
+    .stats { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+    .stats article { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
+    .stats article:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.04); }
+    .stats span { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; }
+    .stats strong { display: block; font-size: 28px; letter-spacing: -.04em; margin-top: 8px; }
+    
+    /* Today Discipline Ring */
+    .today-card { display: flex; align-items: center; justify-content: space-between; background: var(--accent) !important; color: #fff; border: none !important; }
+    .today-card span { color: #9ca3af; }
+    .today-card strong { color: #fff; font-size: 32px; }
+    .ring-wrap { position: relative; width: 64px; height: 64px; }
+    .ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .ring-wrap circle { fill: none; stroke-width: 6; stroke-linecap: round; }
+    .ring-wrap .bg { stroke: rgba(255,255,255,0.1); }
+    .ring-wrap .progress { stroke: #fff; stroke-dasharray: 176; stroke-dashoffset: 176; transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1); }
+    
+    .status-badge { display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.05em; transition: 0.3s; }
+    .status-bad { background: #fee2e2; color: #991b1b; }
+    .status-improve { background: #fef3c7; color: #92400e; }
+    .status-good { background: #e0e7ff; color: #3730a3; }
+    .status-excellent { background: #dcfce7; color: #166534; }
+    .status-perfect { background: #fce7f3; color: #9d174d; }
+    .status-none { background: rgba(0,0,0,0.05); color: var(--muted); }
+    .today-card .status-badge { background: rgba(255,255,255,0.2); color: #fff; }
+    .today-card .status-none { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); }
+
+    /* Layout & Panels */
+    .grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; min-width: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+    .full-width { grid-column: 1 / -1; }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 18px; }
+    .panel h2 { font-size: 16px; margin: 0; letter-spacing: -.02em; display: flex; align-items: center; }
+    
+    .fc-badge { font-size: 10px; background: #fef08a; color: #854d0e; padding: 3px 6px; border-radius: 4px; margin-left: 10px; font-weight: 800; display: none; text-transform: uppercase; }
+    .fc-badge.show { display: inline-block; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    
+    /* Habit Tracker Table */
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+    table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
+    th, td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: center; font-size: 11px; }
+    
+    /* Fix for Date 1 Gap */
+    #tracker th { height: 32px; background: #fafafa; font-weight: 800; position: sticky; top: 0; z-index: 2; padding: 0; }
+    .habit-col { position: sticky; left: 0; background: #fff; text-align: left; min-width: 200px; max-width: 200px; padding: 0 14px !important; z-index: 3; }
+    #tracker th.habit-col { z-index: 4; background: #fafafa; }
+    
+    .day-col { min-width: 34px !important; width: 34px !important; max-width: 34px !important; padding: 0 !important; }
+    #tracker .weekday { font-size: 9px; color: var(--muted); height: 24px; padding: 0; }
+    
+    .habit-name { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 700; }
+    .rate { color: var(--muted); font-size: 10px; font-weight: 800; }
+    
+    /* Checkbox Cells */
+    .cell { width: 100%; height: 34px; padding: 0; background: #fff; color: #fff; border-radius: 0; transition: background 0.2s, transform 0.15s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+    .cell.done { background: var(--done); transform: scale(1.05); z-index: 1; position: relative; border-radius: 4px; }
+    .cell:focus { outline: 2px solid #6b7280; outline-offset: -2px; z-index: 2; }
+    .cell:disabled, .cell.locked { cursor: not-allowed; opacity: 0.4; background: #f9fafb; color: transparent; transform: none; }
+    .cell.locked.done { opacity: 0.5; background: var(--done); color: rgba(255,255,255,0.7); }
+    .cell.is-today { box-shadow: inset 0 0 0 2px #3b82f6; background: #eff6ff; }
+    .cell.is-today.done { background: var(--done); box-shadow: inset 0 0 0 2px var(--done); }
+    .cell.not-tracked { opacity: 0.25 !important; background: #e5e7eb !important; color: #6b7280 !important; cursor: not-allowed !important; font-size: 11px !important; font-weight: 500; }
+    
+    .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 12px; color: var(--muted); font-size: 11px; }
+    .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: middle;}
+    .done-dot { background: var(--done); }
+    .empty-dot { background: #fff; border: 1px solid #d1d5db; }
+    
+    /* Charts */
+    .bars { height: 210px; display: flex; align-items: end; gap: 5px; overflow-x: auto; padding: 20px 3px 5px; }
+    .bar-col { min-width: 24px; height: 100%; display: flex; align-items: end; justify-content: end; flex-direction: column; gap: 4px; transition: opacity 0.3s; }
+    .bar { width: 18px; background: #111827; border-radius: 4px 4px 2px 2px; min-height: 2px; transform-origin: bottom; animation: scaleUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+    .bar-label { font-size: 9px; color: var(--muted); }
+    .bar-value { font-size: 9px; font-weight: 700; }
+    
+    .progress-row { display: grid; grid-template-columns: 150px 1fr 42px; gap: 9px; align-items: center; margin: 12px 0; font-size: 11px; }
+    .progress-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+    .track { height: 8px; background: #eef0f2; border-radius: 99px; overflow: hidden; }
+    .fill { height: 100%; background: #111827; border-radius: 99px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); width: 0; }
+    
+    .donut-row { display: flex; align-items: center; justify-content: center; gap: 28px; min-height: 210px; }
+    .donut { width: 150px; height: 150px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(#111827 0deg, #e5e7eb 0deg); position: relative; transition: background 1s; }
+    .donut:after { content: ""; position: absolute; width: 100px; height: 100px; background: #fff; border-radius: 50%; }
+    .donut > div { position: relative; z-index: 1; text-align: center; }
+    .donut b { display: block; font-size: 26px; letter-spacing: -0.04em; }
+    .donut small { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+    .donut-key { font-size: 12px; line-height: 2.4; font-weight: 600; }
+    .key-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
+    .key-dot.done { background: #111827; }
+    .key-dot.left { background: #e5e7eb; }
+    
+    .rank { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); transition: transform 0.2s; }
+    .rank:hover { transform: translateX(4px); }
+    .rank:last-child { border-bottom: 0; }
+    .rank-num { width: 30px; height: 30px; border-radius: 8px; background: var(--soft); display: grid; place-items: center; font-weight: 800; font-size: 13px; }
+    .rank-main { flex: 1; min-width: 0; }
+    .rank-main b { font-size: 13px; }
+    .rank-main small { display: block; color: var(--muted); margin-top: 3px; font-size: 11px; }
+    .rank-rate { font-weight: 800; font-size: 13px; }
+    
+    /* Year View */
+    .months-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 10px; }
+    .month-card { background: #fff; padding: 24px; border-radius: 12px; border: 1px solid var(--line); cursor: pointer; transition: 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .month-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.06); }
+    .month-card h3 { font-size: 16px; margin: 0 0 16px 0; color: var(--ink); }
+    .mc-stat { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 8px; align-items: center; }
+    .mc-stat b { font-size: 16px; }
+    .mc-meta { font-size: 11px; color: var(--muted); margin-top: 12px; font-weight: 600; }
+    
+    /* Day Discipline View */
+    .day-disc-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 0 10px; }
+    .day-disc-header button { width: 36px; height: 36px; border-radius: 8px; background: var(--soft); font-weight: bold; }
+    .day-disc-header button:hover { background: #e5e7eb; }
+    .day-disc-header h2 { margin: 0; font-size: 20px; }
+    .day-disc-list { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .day-row { display: flex; align-items: center; background: #fff; padding: 16px 20px; border-radius: 12px; border: 1px solid var(--line); cursor: pointer; transition: 0.2s; }
+    .day-row:hover:not(.locked-row) { border-color: var(--accent); transform: translateX(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
+    .day-row.locked-row { cursor: default; }
+    .dr-date { width: 140px; font-weight: 700; font-size: 14px; }
+    .dr-date small { display: block; color: var(--muted); font-size: 11px; font-weight: 600; margin-top: 2px; }
+    .dr-score { flex: 1; display: flex; align-items: center; gap: 15px; }
+    .dr-score-bar { flex: 1; max-width: 300px; height: 8px; background: var(--soft); border-radius: 99px; overflow: hidden; }
+    .dr-score-fill { height: 100%; background: var(--accent); border-radius: 99px; width: 0; transition: width 1s ease; }
+    .dr-score-val { font-weight: 800; font-size: 14px; width: 45px; }
+    .dr-meta { color: var(--muted); font-size: 12px; font-weight: 600; width: 80px; text-align: right; }
+    .dr-status { width: 100px; text-align: right; }
+    
+    /* Detail Modal */
+    .detail-list { margin-top: 20px; max-height: 400px; overflow-y: auto; border-top: 1px solid var(--line); padding-top: 10px; }
+    .detail-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--soft); font-size: 13px; font-weight: 600; }
+    .detail-item:last-child { border-bottom: none; }
+    .d-check { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; font-size: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    .d-check.done { background: var(--done); color: #fff; }
+    .d-check.missed { background: var(--soft); color: var(--muted); }
+    .d-check:hover:not(.locked) { transform: scale(1.1); }
+    .d-check.locked { cursor: not-allowed; opacity: 0.6; }
+
+    /* Modals & Toast */
+    .modal { position: fixed; inset: 0; background: rgba(17, 24, 39, 0.4); backdrop-filter: blur(2px); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 50; opacity: 0; transition: opacity 0.3s; }
+    .modal.show { display: flex; opacity: 1; }
+    .modal-card { background: #fff; border-radius: 16px; padding: 26px; width: min(440px, 100%); box-shadow: 0 24px 48px rgba(0,0,0,0.1); transform: scale(0.95) translateY(10px); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); max-height: 90vh; overflow-y: auto; }
+    .modal.show .modal-card { transform: scale(1) translateY(0); }
+    .modal-card h3 { margin: 0 0 16px; font-size: 20px; letter-spacing: -0.02em; }
+    .modal-card label { font-size: 13px; font-weight: 700; display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .modal-card input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+    .checkbox-label { flex-direction: row !important; align-items: center; cursor: pointer; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+    
+    .toast { position: fixed; bottom: -60px; left: 50%; transform: translateX(-50%); background: #111827; color: #fff; padding: 12px 24px; border-radius: 30px; font-size: 13px; font-weight: 700; transition: bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 9999; box-shadow: 0 10px 25px rgba(0,0,0,0.2); pointer-events: none; }
+    .toast.show { bottom: 30px; }
+
+    /* Animations */
+    .anim-fade-in { animation: fadeIn var(--anim-speed) ease forwards; opacity: 0; }
+    .anim-slide-up { animation: slideUp var(--anim-speed) ease forwards; opacity: 0; }
+    
+    @keyframes fadeIn { to { opacity: 1; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    @keyframes scaleUp { 0% { transform: scaleY(0); } 100% { transform: scaleY(1); } }
+    
+    @media (prefers-reduced-motion: reduce) {
+        * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+    }
+    
+    @media(max-width: 1200px) {
+      .stats { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media(max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      .top { flex-direction: column; align-items: flex-start; }
+      .header-right { width: 100%; align-items: flex-start; }
+      .controls-row { justify-content: space-between; }
+      .app { padding: 16px; }
+      .progress-row { grid-template-columns: 110px 1fr 40px; }
+      .months-grid { grid-template-columns: repeat(3, 1fr); }
+      .dr-score-bar { max-width: 150px; }
+    }
+    @media(max-width: 650px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .today-card { grid-column: 1 / -1; }
+      .months-grid { grid-template-columns: repeat(2, 1fr); }
+      .day-row { flex-wrap: wrap; gap: 10px; }
+      .dr-score { min-width: 100%; order: 3; }
+      .dr-status { flex: 1; text-align: right; }
+    }
+    @media(max-width: 480px) {
+      h1 { font-size: 28px; }
+      .settings { width: 100%; }
+      .settings label { flex: 1; }
+      .settings input, .settings select { width: 100%; }
+      .panel { padding: 16px; }
+      .progress-row { grid-template-columns: 95px 1fr 38px; }
+      .donut-row { gap: 15px; flex-direction: column; }
+      .donut-key { align-self: center; }
+      .view-tabs { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); text-align: center; }
+      .tab-btn { padding: 8px 4px; font-size: 11px; }
+      .months-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="top anim-fade-in">
+    <div class="header-left">
+      <div class="eyebrow">LIFE OS</div>
+      <h1>Habit Tracker</h1>
+      <p>Build consistency. Track the day. Improve tomorrow.</p>
+    </div>
+    <div class="header-right">
+      <div class="controls-row">
+          <div class="settings">
+            <label>Year <input id="year" type="number" min="2000" max="2100" value="2026"></label>
+            <label id="monthWrap">Month <select id="month"></select></label>
+            <button id="todayBtn" class="secondary">Today</button>
+          </div>
+          <div class="profile-btn" id="profileBtn" title="Profile & Settings">
+            <img id="headerProfileImg" alt="Profile">
+          </div>
+      </div>
+      <div class="view-tabs">
+          <button class="tab-btn active" data-view="month" id="tabMonth">Tracker</button>
+          <button class="tab-btn" data-view="year" id="tabYear">Yearly</button>
+          <button class="tab-btn" data-view="discipline" id="tabDisc">Day Discipline</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="stats" id="mainStats">
+    <article class="today-card anim-slide-up" style="animation-delay: 0.05s;">
+        <div>
+            <span>Today's Discipline</span>
+            <strong id="todayDiscScore">0%</strong>
+            <div id="todayDiscStatus" class="status-badge">...</div>
+        </div>
+        <div class="ring-wrap">
+            <svg viewBox="0 0 64 64">
+                <circle class="bg" cx="32" cy="32" r="28"></circle>
+                <circle class="progress" id="todayRing" cx="32" cy="32" r="28"></circle>
+            </svg>
+        </div>
+    </article>
+    <article class="anim-slide-up" style="animation-delay: 0.1s;">
+        <span>Monthly Discipline</span>
+        <strong id="monthlyDiscScore">0%</strong>
+        <div id="monthlyDiscStatus" class="status-badge">...</div>
+        <div id="monthlyTrackedDays" style="font-size:10px; color:var(--muted); margin-top:8px; font-weight:600;">0 days tracked</div>
+    </article>
+    <article class="anim-slide-up" style="animation-delay: 0.15s;">
+        <span>Monthly Completion</span>
+        <strong id="overallPct">0%</strong>
+        <div style="font-size:10px; color:var(--muted); margin-top:8px; font-weight:600;">Active tracking period</div>
+    </article>
+    <article class="anim-slide-up" style="animation-delay: 0.2s;">
+        <span>Habits Status</span>
+        <strong id="completedCount">0</strong>
+        <div style="font-size:10px; color:var(--muted); margin-top:8px; font-weight:600;"><span id="leftCount">0</span> remaining</div>
+    </article>
+    <article class="anim-slide-up" style="animation-delay: 0.25s;">
+        <span>Best Streak</span>
+        <strong id="bestStreak">0 days</strong>
+        <div style="font-size:10px; color:var(--muted); margin-top:8px; font-weight:600;">Keep it up!</div>
+    </article>
+  </section>
+
+  <main class="grid" id="monthViewArea">
+    <section class="panel full-width anim-slide-up" style="animation-delay: 0.1s;">
+      <div class="panel-head">
+        <div>
+          <h2>My Habits <span id="fullControlIndicator" class="fc-badge">🔓 Full Control ON</span></h2>
+          <p id="monthLabel"></p>
+        </div>
+        <button id="addHabitBtn" class="primary">+ Add habit</button>
+      </div>
+      <div class="table-wrap">
+        <table id="tracker">
+          <thead><tr id="dayHead"></tr><tr id="weekdayHead"></tr></thead>
+          <tbody id="habitBody"></tbody>
+        </table>
+      </div>
+      <div class="legend">
+          <span><i class="done-dot"></i> Completed</span>
+          <span><i class="empty-dot"></i> Missed / Locked</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;box-shadow:inset 0 0 0 2px #3b82f6;background:#eff6ff;margin-right:6px;vertical-align:middle;"></span> Today</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#e5e7eb;opacity:0.6;margin-right:6px;vertical-align:middle;"></span> Not Tracked</span>
+      </div>
+    </section>
+
+    <section class="panel anim-slide-up" style="animation-delay: 0.2s;">
+      <div class="panel-head"><div><h2>Daily Progress</h2><p>Completed habits each valid day</p></div></div>
+      <div class="bars" id="dailyBars"></div>
+    </section>
+
+    <section class="panel anim-slide-up" style="animation-delay: 0.25s;">
+      <div class="panel-head"><div><h2>Habit Progress</h2><p>Completion rate by habit</p></div></div>
+      <div id="habitProgress"></div>
+    </section>
+
+    <section class="panel anim-slide-up" style="animation-delay: 0.3s;">
+      <div class="panel-head"><div><h2>Completed vs Left</h2><p>Current tracked month</p></div></div>
+      <div class="donut-row">
+        <div class="donut" id="donut"><div><b id="donutPct">0%</b><small>done</small></div></div>
+        <div class="donut-key"><div><span class="key-dot done"></span><b id="donutDone">0</b> Completed</div><div><span class="key-dot left"></span><b id="donutLeft">0</b> Left</div></div>
+      </div>
+    </section>
+
+    <section class="panel anim-slide-up" style="animation-delay: 0.35s;">
+      <div class="panel-head"><div><h2>Top Habits</h2><p>Highest completion rates this month</p></div></div>
+      <div id="topHabits"></div>
+    </section>
+  </main>
+
+  <main class="grid" id="yearViewArea" style="display: none;">
+    <section class="panel full-width">
+      <div class="panel-head">
+        <div>
+          <h2>Yearly Overview - <span id="yearViewTitle">2026</span></h2>
+          <p>Click on any tracked month to view its detailed habit tracker</p>
+        </div>
+      </div>
+      <div class="months-grid" id="yearMonthsGrid">
+          <!-- Populated by JS -->
+      </div>
+    </section>
+  </main>
+
+  <main class="grid" id="dayDisciplineArea" style="display: none;">
+      <section class="panel full-width">
+          <div class="day-disc-header">
+              <button id="prevDiscMonth">&lt;</button>
+              <div>
+                  <h2 id="discMonthLabel" style="margin:0;">September 2026</h2>
+                  <p style="margin:4px 0 0; color:var(--muted); font-size:12px; text-align:center;">Daily discipline history</p>
+              </div>
+              <button id="nextDiscMonth">&gt;</button>
+          </div>
+          <div class="day-disc-list" id="dayDiscList">
+              <!-- Populated by JS -->
+          </div>
+      </section>
+  </main>
+
+  <footer>Data is saved automatically in your browser. No account or server required.</footer>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal" id="settingsModal" aria-hidden="true">
+  <div class="modal-card">
+    <h3>Profile & Settings</h3>
+    <form id="settingsForm">
+      <label>
+        Profile Picture
+        <input type="file" id="profileUpload" accept="image/png, image/jpeg, image/webp">
+      </label>
+      
+      <div style="height: 1px; background: var(--line); margin: 20px 0;"></div>
+      
+      <label>
+        Tracking Start Date
+        <input type="date" id="startDateInput" required>
+      </label>
+      <p style="font-size:11px; color:var(--muted); margin: -4px 0 16px 0; line-height: 1.4;">
+        Your tracking history starts strictly from this date. Dates before this will not be included in your statistics or streaks.
+      </p>
+
+      <div style="height: 1px; background: var(--line); margin: 20px 0;"></div>
+
+      <label class="checkbox-label">
+        <input type="checkbox" id="fullControlCheck">
+        <b>Enable Full Control Mode</b>
+      </label>
+      <p style="font-size:11px; color:var(--muted); margin: 4px 0 16px 28px; line-height: 1.4;">
+        When OFF, you can edit habits <b>only for today</b>. Past days are locked to enforce discipline. When ON, you can edit any date (after your Start Date).
+      </p>
+
+      <div class="modal-actions" style="margin-top: 28px;">
+          <button type="button" class="primary" id="closeSettings">Save Settings</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Habit Modal -->
+<div class="modal" id="habitModal" aria-hidden="true">
+  <div class="modal-card">
+    <h3>Add habit</h3>
+    <form id="habitForm">
+      <label>Habit name <input id="habitName" maxlength="40" required placeholder="e.g. Meditation"></label>
+      <div class="modal-actions"><button type="button" class="secondary" id="cancelHabit">Cancel</button><button class="primary">Add habit</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Day Detail Modal -->
+<div class="modal" id="dayDetailModal" aria-hidden="true">
+  <div class="modal-card">
+    <div>
+        <h3 id="ddDate">Sep 21, 2026</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+            <div style="font-size:24px; font-weight:800; letter-spacing:-0.04em;" id="ddScore">82%</div>
+            <div id="ddStatus" class="status-badge">Excellent</div>
+        </div>
+        <div style="height:6px; background:var(--soft); border-radius:99px; overflow:hidden;">
+            <div id="ddBar" style="height:100%; background:var(--accent); width:0%; transition:width 0.5s;"></div>
+        </div>
+        <div style="font-size:12px; color:var(--muted); font-weight:700; margin-top:8px;" id="ddMeta">4 / 5 Habits Completed</div>
+    </div>
+    <div class="detail-list" id="ddList"></div>
+    <div class="modal-actions">
+        <button type="button" class="secondary" id="closeDayDetail">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal" id="deleteConfirmModal" aria-hidden="true">
+  <div class="modal-card">
+    <h3 style="color: #991b1b; display:flex; align-items:center; gap:8px;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      Delete Habit?
+    </h3>
+    <p style="font-size: 14px; margin-bottom: 8px;">Are you sure you want to delete "<strong id="deleteHabitName"></strong>"?</p>
+    <p style="font-size: 13px; color: var(--muted); margin-top:0;">This action will remove this habit and all its historical tracking data. This cannot be undone.</p>
+    <div class="modal-actions" style="margin-top: 24px;">
+        <button type="button" class="secondary" id="cancelDeleteBtn">Cancel</button>
+        <button type="button" class="primary" id="confirmDeleteBtn" style="background:#dc2626;">Delete Habit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toastMsg" class="toast">Settings saved successfully</div>
+
+<script type="module">
+// --- FIREBASE INTEGRATION ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-analytics.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDEKLI-13U8gZ7ApF9lqzCjugxMC_igPpw",
+  authDomain: "nova-be006.firebaseapp.com",
+  projectId: "nova-be006",
+  storageBucket: "nova-be006.firebasestorage.app",
+  messagingSenderId: "868864197334",
+  appId: "1:868864197334:web:339998a3dc52f1bb1fbf77",
+  measurementId: "G-PEXG1HV16M"
+};
+
+let app, analytics;
+try {
+    app = initializeApp(firebaseConfig);
+    analytics = getAnalytics(app);
+    console.log("Firebase initialized successfully.");
+} catch (e) {
+    console.error("Firebase initialization failed:", e);
+    const footer = document.querySelector('footer');
+    if(footer) footer.innerHTML += '<br><span style="color:#ef4444">Cloud sync unavailable — using local storage.</span>';
+}
+// -----------------------------
+
+const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const shortMonths = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const defaultHabits = ["Wake up at 05:00","Gym","Reading / Learning","Day Planning","No Grooming","Project Work","No Alcohol","Social Media Detox","Goal Journaling","Cold Shower","10K Steps","Plan Tomorrow","Trading Study","Coding","Sleep Before 11 PM"];
+const stateKey = "lifeOSHabitTrackerV1";
+
+// Real current date logic
+function getRealToday() {
+    const d = new Date();
+    return { y: d.getFullYear(), m: d.getMonth(), d: d.getDate() };
+}
+const rToday = getRealToday();
+const pad = n => String(n).padStart(2, '0');
+const todayString = `${rToday.y}-${pad(rToday.m+1)}-${pad(rToday.d)}`;
+
+let state = JSON.parse(localStorage.getItem(stateKey) || "null");
+if (!state) {
+    state = { year: rToday.y, month: rToday.m, habits: defaultHabits, checks: {} };
+}
+if (state.fullControl === undefined) state.fullControl = false;
+if (state.profilePic === undefined) state.profilePic = "";
+
+// Initialize Start Date securely
+if (!state.startDate) {
+    // If they have existing checks, default to an old date to preserve history. Otherwise today.
+    if (Object.keys(state.checks || {}).length > 0) {
+        state.startDate = "2000-01-01";
+    } else {
+        state.startDate = todayString;
+    }
+}
+
+let currentView = 'month'; 
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+$("#month").innerHTML = months.map((m,i) => `<option value="${i}">${m}</option>`).join("");
+$("#year").value = state.year;
+$("#month").value = state.month;
+
+function save() { localStorage.setItem(stateKey, JSON.stringify(state)); }
+function daysInMonth(y, m) { return new Date(y, m+1, 0).getDate(); }
+function keyFor(h, y, m, d) { return `${y}-${m+1}-${d}|${h}`; }
+function isDoneFor(h, y, m, d) { return state.checks[keyFor(h, y, m, d)] === 1; }
+function isDone(h, d) { return isDoneFor(h, state.year, state.month, d); }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+// --- Date Category Logic (Start Date Boundaries) ---
+function parseDateString(ds) {
+    if (!ds) return {y:0, m:0, d:0};
+    const p = ds.split('-');
+    return { y: +p[0], m: (+p[1]) - 1, d: +p[2] };
+}
+function compareDates(d1, d2) {
+    if (d1.y !== d2.y) return d1.y - d2.y;
+    if (d1.m !== d2.m) return d1.m - d2.m;
+    return d1.d - d2.d;
+}
+function getDateCategory(y, m, d) {
+    const start = parseDateString(state.startDate);
+    const today = getRealToday();
+    const cur = {y, m, d};
+    if (compareDates(cur, start) < 0) return "before-start";
+    if (compareDates(cur, today) > 0) return "future";
+    return "tracked";
+}
+// ---------------------------------------------------
+
+// Globals for delete flow
+let habitToDeleteIndex = null;
+
+function getDisciplineStatus(score) {
+    if(score <= 59) return {text: "Bad", cls: "status-bad"};
+    if(score <= 74) return {text: "Improve", cls: "status-improve"};
+    if(score <= 79) return {text: "Good", cls: "status-good"};
+    if(score <= 98) return {text: "Excellent", cls: "status-excellent"};
+    return {text: "Perfect", cls: "status-perfect"};
+}
+
+function showToast(msg) {
+    const t = $("#toastMsg");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 3000);
+}
+
+// Animate numbers
+function animateValue(obj, start, end, duration) {
+    let startTimestamp = null;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        obj.innerHTML = Math.floor(progress * (end - start) + start) + (obj.dataset.suffix || "");
+        if (progress < 1) window.requestAnimationFrame(step);
+    };
+    window.requestAnimationFrame(step);
+}
+
+function setDone(h, d, v, y = state.year, m = state.month) {
+    const r = getRealToday();
+    const isToday = (y === r.y && m === r.m && d === r.d);
+    const cat = getDateCategory(y, m, d);
+    
+    // Safety checks
+    if (cat === 'before-start') return; // strictly locked
+    if (!state.fullControl && !isToday) return; // Full control check
+    
+    state.checks[keyFor(h, y, m, d)] = v ? 1 : 0;
+    save();
+    
+    if (currentView === 'month') render();
+    else if (currentView === 'discipline') renderDayDiscipline(); 
+    
+    if ($('#dayDetailModal').classList.contains('show')) updateDayDetail(y, m, d);
+}
+
+function render() {
+  const days = daysInMonth(state.year, state.month);
+  const r = getRealToday();
+
+  $("#monthLabel").textContent = `${months[state.month]} ${state.year} • ${days} days`;
+  $("#fullControlIndicator").className = state.fullControl ? "fc-badge show" : "fc-badge";
+  
+  $("#dayHead").innerHTML = `<th rowspan="2" class="habit-col">Habit</th>` + 
+      Array.from({length:days}, (_,i) => `<th class="day-col">${i+1}</th>`).join("") + 
+      `<th>Progress</th>`;
+      
+  $("#weekdayHead").innerHTML = Array.from({length:days}, (_,i) => 
+      `<th class="weekday day-col">${["S","M","T","W","T","F","S"][new Date(state.year, state.month, i+1).getDay()]}</th>`
+  ).join("") + `<th></th>`;
+  
+  $("#habitBody").innerHTML = state.habits.map((h, hi) => {
+    let validDays = 0;
+    let doneCount = 0;
+    
+    for(let i=0; i<days; i++) {
+        const cat = getDateCategory(state.year, state.month, i+1);
+        if (cat === 'tracked') {
+            validDays++;
+            if (isDone(h, i+1)) doneCount++;
+        }
+    }
+    const pct = validDays ? Math.round(doneCount / validDays * 100) : 0;
+    
+    let rowHtml = `<tr id="habitRow-${hi}"><td class="habit-col"><div class="habit-name">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <button class="del-btn" aria-label="Delete habit" data-hi="${hi}" style="background:transparent; color:var(--muted); padding:2px; font-size:14px; opacity:0.3; transition:0.2s;" onmouseover="this.style.opacity=1;this.style.color='#dc2626'" onmouseout="this.style.opacity=0.3;this.style.color='var(--muted)'">🗑</button>
+            <span>${escapeHtml(h)}</span>
+        </div>
+        <span class="rate">${pct}%</span>
+    </div></td>`;
+    
+    for(let i=0; i<days; i++) {
+        const d = i + 1;
+        const cat = getDateCategory(state.year, state.month, d);
+        const isToday = (cat === 'tracked' && state.year === r.y && state.month === r.m && d === r.d);
+        const canEdit = state.fullControl || isToday;
+        const checked = isDone(h, d);
+        
+        let classes = ["cell"];
+        let label = "";
+        let btnDisabled = "";
+        
+        if (cat === 'before-start') {
+            classes.push("locked", "not-tracked");
+            label = "—";
+            btnDisabled = "disabled";
+        } else if (cat === 'future') {
+            if (!state.fullControl) {
+                classes.push("locked");
+                btnDisabled = "disabled";
+            }
+            if (checked) { classes.push("done"); label = "✓"; }
+        } else {
+            // Tracked
+            if (checked) { classes.push("done"); label = "✓"; }
+            if (!canEdit) classes.push("locked");
+            if (isToday) classes.push("is-today");
+            if (!canEdit) btnDisabled = "disabled";
+        }
+        
+        rowHtml += `<td class="day-col"><button class="${classes.join(' ')}" data-h="${hi}" data-d="${d}" ${btnDisabled}>${label}</button></td>`;
+    }
+    
+    rowHtml += `<td style="padding:0 10px;font-weight:800">${pct}%</td></tr>`;
+    return rowHtml;
+  }).join("");
+
+  $$(".cell").forEach(b => b.addEventListener("click", () => {
+      if(b.disabled || b.classList.contains('not-tracked')) return;
+      const h = state.habits[+b.dataset.h];
+      const d = +b.dataset.d;
+      setDone(h, d, !isDone(h, d));
+  }));
+
+  $$(".del-btn").forEach(btn => btn.addEventListener("click", (e) => {
+      openDeleteConfirm(+e.currentTarget.dataset.hi);
+  }));
+  
+  renderDashboardStats();
+  renderDaily(days);
+  renderHabitProgress();
+  renderDonut();
+  renderTop();
+  updateProfilePic();
+}
+
+function getMonthMetrics(y, m) {
+    const daysInM = daysInMonth(y, m);
+    let validUpToToday = 0;
+    let validTotal = 0;
+    let compUpToToday = 0;
+    let compTotal = 0;
+
+    const start = parseDateString(state.startDate);
+    const today = getRealToday();
+    
+    for(let d=1; d<=daysInM; d++) {
+        const cur = {y, m, d};
+        if (compareDates(cur, start) >= 0) {
+            validTotal++;
+            let dayDone = 0;
+            state.habits.forEach(h => { if(isDoneFor(h, y, m, d)) dayDone++; });
+            compTotal += dayDone;
+
+            if (compareDates(cur, today) <= 0) {
+                validUpToToday++;
+                compUpToToday += dayDone;
+            }
+        }
+    }
+
+    const monthStart = {y, m, d: 1};
+    const monthEnd = {y, m, d: daysInM};
+    let status = "tracked";
+    if (compareDates(monthEnd, start) < 0) status = "before-start";
+    else if (compareDates(monthStart, today) > 0) status = "future";
+
+    return {
+        discPct: (validUpToToday * state.habits.length) ? Math.round(compUpToToday / (validUpToToday * state.habits.length) * 100) : 0,
+        compPct: (validTotal * state.habits.length) ? Math.round(compTotal / (validTotal * state.habits.length) * 100) : 0,
+        validUpToToday,
+        validTotal,
+        compTotal,
+        left: (validTotal * state.habits.length) - compTotal,
+        status
+    };
+}
+
+function renderDashboardStats() {
+    const metrics = getMonthMetrics(state.year, state.month);
+    const r = getRealToday();
+    const todayCat = getDateCategory(r.y, r.m, r.d);
+    
+    // Overall Monthly Completion
+    if (metrics.status === 'before-start' || metrics.status === 'future') {
+        $("#overallPct").textContent = "—";
+    } else {
+        $("#overallPct").dataset.suffix = "%";
+        animateValue($("#overallPct"), 0, metrics.compPct, 600);
+    }
+    
+    // Monthly Discipline
+    if (metrics.status === 'before-start' || metrics.status === 'future' || metrics.validUpToToday === 0) {
+        $("#monthlyDiscScore").textContent = "—";
+        const badge = $("#monthlyDiscStatus");
+        badge.textContent = "Not Started";
+        badge.className = "status-badge status-none";
+        $("#monthlyTrackedDays").textContent = "0 days tracked";
+    } else {
+        $("#monthlyDiscScore").dataset.suffix = "%";
+        animateValue($("#monthlyDiscScore"), 0, metrics.discPct, 600);
+        const ms = getDisciplineStatus(metrics.discPct);
+        const mb = $("#monthlyDiscStatus");
+        mb.textContent = ms.text;
+        mb.className = `status-badge ${ms.cls}`;
+        $("#monthlyTrackedDays").textContent = `${metrics.validUpToToday} day${metrics.validUpToToday!==1?'s':''} tracked`;
+    }
+
+    // Today's Discipline
+    if (todayCat === 'before-start') {
+        $("#todayDiscScore").textContent = "—";
+        $("#todayDiscStatus").textContent = "Not Started";
+        $("#todayDiscStatus").className = "status-badge status-none";
+        $("#todayRing").style.strokeDashoffset = 176;
+    } else {
+        let todayCompleted = 0;
+        const todayTotal = state.habits.length;
+        state.habits.forEach(h => { if (isDoneFor(h, r.y, r.m, r.d)) todayCompleted++; });
+        const todayPct = todayTotal ? Math.round(todayCompleted / todayTotal * 100) : 0;
+        
+        $("#todayDiscScore").dataset.suffix = "%";
+        animateValue($("#todayDiscScore"), 0, todayPct, 800);
+        const ts = getDisciplineStatus(todayPct);
+        $("#todayDiscStatus").textContent = ts.text;
+        $("#todayDiscStatus").className = `status-badge`; // Reset inner classes, rely on base
+        
+        setTimeout(() => {
+            $("#todayRing").style.strokeDashoffset = 176 - (176 * todayPct / 100);
+        }, 100);
+    }
+
+    // Habits Status
+    animateValue($("#completedCount"), 0, metrics.compTotal, 600);
+    $("#leftCount").textContent = metrics.left;
+    
+    // Best Streak (Strictly tracked days)
+    let best = 0;
+    const daysInM = daysInMonth(state.year, state.month);
+    state.habits.forEach(h => {
+        let run = 0;
+        for(let d=1; d<=daysInM; d++) {
+            if (getDateCategory(state.year, state.month, d) === 'tracked') {
+                run = isDone(h, d) ? run + 1 : 0;
+                best = Math.max(best, run);
+            }
+        }
+    });
+    $("#bestStreak").textContent = best + " day" + (best === 1 ? "" : "s");
+}
+
+function renderDaily(days) {
+    const max = state.habits.length;
+    $("#dailyBars").innerHTML = Array.from({length:days}, (_,i) => {
+        const cat = getDateCategory(state.year, state.month, i+1);
+        if (cat === 'before-start' || cat === 'future') {
+             return `<div class="bar-col"><div class="bar" style="height:2px; background:var(--line);"></div><span class="bar-label" style="opacity:0.5">${i+1}</span></div>`;
+        }
+        const n = state.habits.reduce((a, h) => a + (isDone(h, i+1) ? 1 : 0), 0);
+        const ht = Math.max(2, max ? (n / max * 145) : 2);
+        return `<div class="bar-col" title="${n} completed"><span class="bar-value">${n}</span><div class="bar" style="height:${ht}px; animation-delay: ${i*0.01}s"></div><span class="bar-label">${i+1}</span></div>`;
+    }).join("");
+}
+
+function rates(y, m) {
+    const days = daysInMonth(y, m);
+    let validDays = 0;
+    for(let d=1; d<=days; d++) {
+        if (getDateCategory(y, m, d) === 'tracked') validDays++;
+    }
+    
+    return state.habits.map(h => {
+        let n = 0;
+        for(let d=1; d<=days; d++) {
+            if (getDateCategory(y, m, d) === 'tracked' && isDoneFor(h, y, m, d)) n++;
+        }
+        return { h, n, pct: validDays ? Math.round(n / validDays * 100) : 0 };
+    });
+}
+
+function renderHabitProgress() {
+    $("#habitProgress").innerHTML = rates(state.year, state.month).map((x, i) => `
+        <div class="progress-row anim-slide-up" style="animation-delay: ${i*0.05}s">
+            <span class="progress-name">${escapeHtml(x.h)}</span>
+            <div class="track"><div class="fill" style="width:${x.pct}%"></div></div>
+            <b>${x.pct}%</b>
+        </div>
+    `).join("");
+    setTimeout(() => { $$(".progress-row .fill").forEach(f => f.style.width = f.style.width); }, 50);
+}
+
+function renderDonut() {
+    const metrics = getMonthMetrics(state.year, state.month);
+    const deg = metrics.validTotal ? metrics.compTotal / (metrics.validTotal * state.habits.length) * 360 : 0;
+    $("#donut").style.background = `conic-gradient(#111827 0deg, #111827 ${deg}deg, #e5e7eb ${deg}deg, #e5e7eb 360deg)`;
+    
+    if (metrics.status === 'before-start' || metrics.status === 'future') {
+        $("#donutPct").textContent = "—";
+    } else {
+        $("#donutPct").dataset.suffix = "%";
+        animateValue($("#donutPct"), 0, metrics.compPct, 800);
+    }
+    
+    $("#donutDone").textContent = metrics.compTotal;
+    $("#donutLeft").textContent = metrics.left;
+}
+
+function renderTop() {
+    const sorted = rates(state.year, state.month).sort((a, b) => b.pct - a.pct).slice(0, 5);
+    let validTotalDays = 0;
+    const days = daysInMonth(state.year, state.month);
+    for(let d=1; d<=days; d++) { if(getDateCategory(state.year, state.month, d) === 'tracked') validTotalDays++; }
+    
+    $("#topHabits").innerHTML = sorted.map((x, i) => `
+        <div class="rank anim-slide-up" style="animation-delay: ${i*0.08}s">
+            <div class="rank-num">${i+1}</div>
+            <div class="rank-main"><b>${escapeHtml(x.h)}</b><small>${x.n} of ${validTotalDays} valid days</small></div>
+            <div class="rank-rate">${x.pct}%</div>
+        </div>
+    `).join("");
+}
+
+function renderYearView() {
+    $("#yearViewTitle").textContent = state.year;
+    let html = "";
+    for(let m = 0; m < 12; m++) {
+        let st = getMonthMetrics(state.year, m);
+        let discHtml, compHtml, metaHtml;
+        
+        if (st.status === 'before-start') {
+            discHtml = `<b style="color:var(--muted)">—</b>`;
+            compHtml = `<b style="color:var(--muted)">—</b>`;
+            metaHtml = `Not Tracked`;
+        } else if (st.status === 'future') {
+            discHtml = `<b style="color:var(--muted)">—</b>`;
+            compHtml = `<b style="color:var(--muted)">—</b>`;
+            metaHtml = `Not Started`;
+        } else {
+            discHtml = `<b>${st.discPct}%</b>`;
+            compHtml = `<b>${st.compPct}%</b>`;
+            metaHtml = `${st.validUpToToday} days tracked`;
+        }
+        
+        html += `
+        <div class="month-card anim-slide-up" style="animation-delay: ${m*0.03}s" data-m="${m}">
+            <h3>${months[m]}</h3>
+            <div class="mc-stat"><span style="color:var(--muted)">Discipline</span> ${discHtml}</div>
+            <div class="mc-stat"><span style="color:var(--muted)">Completion</span> ${compHtml}</div>
+            <div class="mc-meta">${metaHtml}</div>
+        </div>`;
+    }
+    $("#yearMonthsGrid").innerHTML = html;
+    
+    $$(".month-card").forEach(el => {
+        el.addEventListener("click", () => {
+            state.month = parseInt(el.dataset.m);
+            save(); $("#month").value = state.month;
+            switchTab('month');
+        });
+    });
+}
+
+function getDayDiscipline(y, m, d) {
+    let completed = 0;
+    state.habits.forEach(h => { if(isDoneFor(h, y, m, d)) completed++; });
+    const total = state.habits.length;
+    const score = total ? Math.round(completed / total * 100) : 0;
+    return { completed, total, score, status: getDisciplineStatus(score) };
+}
+
+function renderDayDiscipline() {
+    $("#discMonthLabel").textContent = `${months[state.month]} ${state.year}`;
+    let html = "";
+    const daysInM = daysInMonth(state.year, state.month);
+    
+    for(let d = daysInM; d >= 1; d--) {
+        const dateObj = new Date(state.year, state.month, d);
+        const dayName = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][dateObj.getDay()];
+        const cat = getDateCategory(state.year, state.month, d);
+        
+        if (cat === 'before-start') {
+            html += `
+            <div class="day-row anim-slide-up locked-row" style="opacity:0.5; animation-delay: ${(daysInM-d)*0.01}s">
+                <div class="dr-date">${months[state.month]} ${d} <small>${dayName}</small></div>
+                <div class="dr-score" style="justify-content:center;"><span style="color:var(--muted); font-weight:600; font-size:12px;">— Not Tracked</span></div>
+            </div>`;
+        } else if (cat === 'future') {
+            html += `
+            <div class="day-row anim-slide-up locked-row" style="opacity:0.5; animation-delay: ${(daysInM-d)*0.01}s">
+                <div class="dr-date">${months[state.month]} ${d} <small>${dayName}</small></div>
+                <div class="dr-score" style="justify-content:center;"><span style="color:var(--muted); font-weight:600; font-size:12px;">— Not Started</span></div>
+            </div>`;
+        } else {
+            const st = getDayDiscipline(state.year, state.month, d);
+            html += `
+            <div class="day-row anim-slide-up" style="animation-delay: ${(daysInM-d)*0.01}s" onclick="openDayDetail(${state.year}, ${state.month}, ${d})">
+                <div class="dr-date">${months[state.month]} ${d} <small>${dayName}</small></div>
+                <div class="dr-score">
+                    <div class="dr-score-bar"><div class="dr-score-fill" style="width:${st.score}%"></div></div>
+                    <div class="dr-score-val">${st.score}%</div>
+                </div>
+                <div class="dr-meta">${st.completed} / ${st.total}</div>
+                <div class="dr-status"><span class="status-badge ${st.status.cls}" style="margin:0">${st.status.text}</span></div>
+            </div>`;
+        }
+    }
+    $("#dayDiscList").innerHTML = html;
+}
+
+$("#prevDiscMonth").addEventListener("click", () => {
+    let m = state.month - 1, y = state.year;
+    if (m < 0) { m = 11; y--; }
+    state.month = m; state.year = y; save();
+    $("#month").value = m; $("#year").value = y;
+    renderDayDiscipline();
+});
+$("#nextDiscMonth").addEventListener("click", () => {
+    let m = state.month + 1, y = state.year;
+    if (m > 11) { m = 0; y++; }
+    state.month = m; state.year = y; save();
+    $("#month").value = m; $("#year").value = y;
+    renderDayDiscipline();
+});
+
+let activeDetail = null;
+function updateDayDetail(y, m, d) {
+    const st = getDayDiscipline(y, m, d);
+    $("#ddScore").textContent = st.score + "%";
+    
+    const badge = $("#ddStatus");
+    badge.textContent = st.status.text;
+    badge.className = `status-badge ${st.status.cls}`;
+    
+    $("#ddBar").style.width = st.score + "%";
+    $("#ddMeta").textContent = `${st.completed} / ${st.total} Habits Completed`;
+    
+    const r = getRealToday();
+    const canEdit = state.fullControl || (y === r.y && m === r.m && d === r.d);
+    
+    let listHtml = "";
+    state.habits.forEach((h, hi) => {
+        const done = isDoneFor(h, y, m, d);
+        const cls = done ? "done" : "missed";
+        const lockCls = canEdit ? "" : "locked";
+        const icon = done ? "✓" : "✕";
+        
+        listHtml += `
+        <div class="detail-item">
+            <span>${escapeHtml(h)}</span>
+            <div class="d-check ${cls} ${lockCls}" onclick="toggleFromDetail(${hi}, ${y}, ${m}, ${d}, ${canEdit})">${icon}</div>
+        </div>`;
+    });
+    $("#ddList").innerHTML = listHtml;
+}
+
+window.toggleFromDetail = function(hi, y, m, d, canEdit) {
+    if(!canEdit) return;
+    const h = state.habits[hi];
+    setDone(h, d, !isDoneFor(h, y, m, d), y, m);
+};
+
+window.openDayDetail = function(y, m, d) {
+    activeDetail = {y, m, d};
+    $("#ddDate").textContent = `${shortMonths[m]} ${d}, ${y}`;
+    updateDayDetail(y, m, d);
+    
+    const mod = $("#dayDetailModal");
+    mod.classList.add("show");
+    mod.setAttribute("aria-hidden", "false");
+};
+
+$("#closeDayDetail").addEventListener("click", () => {
+    $("#dayDetailModal").classList.remove("show");
+    activeDetail = null;
+});
+
+function switchTab(view) {
+    currentView = view;
+    $$(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.view === view));
+    
+    $("#monthViewArea").style.display = view === 'month' ? 'grid' : 'none';
+    $("#mainStats").style.display = view === 'month' ? 'grid' : 'none';
+    $("#monthWrap").style.display = view === 'month' || view === 'discipline' ? 'grid' : 'none';
+    
+    $("#yearViewArea").style.display = view === 'year' ? 'block' : 'none';
+    $("#dayDisciplineArea").style.display = view === 'discipline' ? 'block' : 'none';
+    
+    if (view === 'month') render();
+    else if (view === 'year') renderYearView();
+    else if (view === 'discipline') renderDayDiscipline();
+}
+
+$$(".tab-btn").forEach(btn => btn.addEventListener("click", e => switchTab(e.target.dataset.view)));
+
+$("#year").addEventListener("change", e => {
+    state.year = Math.min(2100, Math.max(2000, parseInt(e.target.value) || 2026));
+    save(); switchTab(currentView);
+});
+
+$("#month").addEventListener("change", e => {
+    state.month = +e.target.value;
+    save(); switchTab(currentView);
+});
+
+$("#todayBtn").addEventListener("click", () => {
+    const r = getRealToday();
+    state.year = r.y; state.month = r.m;
+    $("#year").value = state.year; $("#month").value = state.month;
+    save(); switchTab(currentView);
+});
+
+function updateProfilePic() {
+    $("#headerProfileImg").src = state.profilePic || `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%239ca3af"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
+}
+
+$("#profileUpload").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            const maxW = 200, maxH = 200;
+            let width = img.width, height = img.height;
+            if (width > height && width > maxW) { height *= maxW / width; width = maxW; }
+            else if (height > maxH) { width *= maxH / height; height = maxH; }
+            canvas.width = width; canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            state.profilePic = canvas.toDataURL("image/jpeg", 0.8);
+            save(); updateProfilePic();
+        };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+
+// Settings Modal
+const settingsModal = $("#settingsModal");
+$("#profileBtn").addEventListener("click", () => {
+    $("#fullControlCheck").checked = state.fullControl;
+    $("#startDateInput").value = state.startDate;
+    settingsModal.classList.add("show");
+    settingsModal.setAttribute("aria-hidden", "false");
+});
+
+$("#closeSettings").addEventListener("click", () => {
+    const newStart = $("#startDateInput").value;
+    if (newStart) {
+        state.startDate = newStart;
+        state.fullControl = $("#fullControlCheck").checked;
+        save();
+        
+        settingsModal.classList.remove("show");
+        showToast("Settings saved successfully");
+        switchTab(currentView); // Trigger full refresh of views
+    }
+});
+
+// Habit Modal
+const habitModal = $("#habitModal");
+$("#addHabitBtn").addEventListener("click", () => {
+    habitModal.classList.add("show");
+    habitModal.setAttribute("aria-hidden", "false");
+    $("#habitName").focus();
+});
+$("#cancelHabit").addEventListener("click", () => habitModal.classList.remove("show"));
+$("#habitForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const n = $("#habitName").value.trim();
+    if (n && !state.habits.includes(n)) {
+        state.habits.push(n); save();
+        if(currentView === 'month') render();
+        $("#habitName").value = "";
+        habitModal.classList.remove("show");
+    }
+});
+
+// Delete Flow
+function openDeleteConfirm(hi) {
+    habitToDeleteIndex = hi;
+    $("#deleteHabitName").textContent = escapeHtml(state.habits[hi]);
+    const mod = $("#deleteConfirmModal");
+    mod.classList.add("show");
+    mod.setAttribute("aria-hidden", "false");
+}
+
+$("#cancelDeleteBtn").addEventListener("click", () => {
+    $("#deleteConfirmModal").classList.remove("show");
+    habitToDeleteIndex = null;
+});
+
+$("#confirmDeleteBtn").addEventListener("click", () => {
+    if (habitToDeleteIndex === null) return;
+    const habitName = state.habits[habitToDeleteIndex];
+    const rowEl = $(`#habitRow-${habitToDeleteIndex}`);
+    
+    $("#deleteConfirmModal").classList.remove("show");
+    
+    if (rowEl) {
+        rowEl.style.transition = "opacity 0.3s, transform 0.3s";
+        rowEl.style.opacity = "0";
+        rowEl.style.transform = "translateX(-20px)";
+    }
+    
+    setTimeout(() => {
+        state.habits.splice(habitToDeleteIndex, 1);
+        const keysToDelete = [];
+        for (const k in state.checks) {
+            const parts = k.split('|');
+            if (parts.length === 2 && parts[1] === habitName) keysToDelete.push(k);
+        }
+        keysToDelete.forEach(k => delete state.checks[k]);
+        
+        save(); habitToDeleteIndex = null;
+        switchTab(currentView);
+    }, rowEl ? 300 : 0);
+});
+
+// Boot
+switchTab('month');
+</script>
+</body>
+</html>
